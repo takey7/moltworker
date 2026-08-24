@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   capture:
@@ -71,6 +71,7 @@ jobs:
                 item.status = response?.status() ?? null;
                 item.finalUrlAfterGoto = page.url();
                 await page.waitForTimeout(10000);
+
                 if (target.search) {
                   const inputSelectors = ['input[placeholder*="wallet" i]', 'input[placeholder*="address" i]', 'input[placeholder*="0x" i]', 'input[type="search"]', 'input[type="text"]'];
                   let filled = false;
@@ -95,9 +96,11 @@ jobs:
                   item.searchFilled = filled;
                   await page.waitForTimeout(15000);
                 }
+
                 for (const label of [/accept all/i, /accept/i, /agree/i, /allow all/i, /got it/i, /close/i]) {
                   try { const button = page.getByRole('button', { name: label }).first(); if (await button.count() && await button.isVisible({ timeout: 700 })) { await button.click(); await page.waitForTimeout(800); } } catch {}
                 }
+
                 await page.waitForTimeout(4000);
                 item.finalUrl = page.url();
                 item.title = await page.title().catch(() => '');
@@ -132,4 +135,15 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-# retrigger: 2026-08-24T00:00:00Z
+      - name: Commit captures for deterministic retrieval
+        run: |
+          rm -rf tmp/hyperliquid-target-wallet-captures
+          mkdir -p tmp/hyperliquid-target-wallet-captures
+          cp -R target-wallet-captures/. tmp/hyperliquid-target-wallet-captures/
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/hyperliquid-target-wallet-captures
+          git commit -m 'Store actual Hyperliquid target-wallet captures' || exit 0
+          git push
+
+# retrigger: 2026-08-24T11:20:00Z
